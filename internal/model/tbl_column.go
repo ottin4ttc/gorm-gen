@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"gorm.io/gen/field"
@@ -98,7 +99,14 @@ func (c *Column) buildGormTag() field.GormTag {
 		tag.Set(field.TagKeyGormNotNull, "")
 	}
 
-	for _, idx := range c.Indexes {
+	// Create a copy of indexes and sort by name to ensure consistent order
+	indexes := make([]*Index, len(c.Indexes))
+	copy(indexes, c.Indexes)
+	sort.Slice(indexes, func(i, j int) bool {
+		return indexes[i].Name() < indexes[j].Name()
+	})
+
+	for _, idx := range indexes {
 		if idx == nil {
 			continue
 		}
@@ -112,7 +120,11 @@ func (c *Column) buildGormTag() field.GormTag {
 		}
 	}
 
-	if dtValue := c.defaultTagValue(); c.needDefaultTag(dtValue) { // cannot set default tag for primary key
+	// if dtValue := c.defaultTagValue(); c.needDefaultTag(dtValue) { // cannot set default tag for primary key
+	// 	tag.Set(field.TagKeyGormDefault, dtValue)
+	// }
+	if _, valid := c.DefaultValue(); valid {
+		dtValue := c.defaultTagValue()
 		tag.Set(field.TagKeyGormDefault, dtValue)
 	}
 	if comment, ok := c.Comment(); ok && comment != "" {
@@ -153,6 +165,9 @@ func (c *Column) defaultTagValue() string {
 	}
 	if value != "" && strings.TrimSpace(value) == "" {
 		return "'" + value + "'"
+	}
+	if value == "" {
+		return "''"
 	}
 	return value
 }
