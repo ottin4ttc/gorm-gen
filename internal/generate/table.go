@@ -109,6 +109,8 @@ func getIndexColumnSequences(db *gorm.DB, schemaName string, tableName string) (
 		// PostgreSQL query to get index column sequences
 		// Use generate_subscripts to get the position of each column in the indkey array
 		// Note: pg_index.indkey is 0-indexed, so we add 1 to get 1-based priority
+		// Note: indnkeyatts (PostgreSQL 11+) gives the number of key columns, excluding INCLUDE columns
+		// We use pos < ix.indnkeyatts to only consider key columns
 		pgSchema := schemaName
 		if pgSchema == "" {
 			pgSchema = "public" // Default PostgreSQL schema
@@ -125,6 +127,7 @@ func getIndexColumnSequences(db *gorm.DB, schemaName string, tableName string) (
 			JOIN LATERAL generate_subscripts(ix.indkey, 1) AS pos ON true
 			JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ix.indkey[pos]
 			WHERE n.nspname = ? AND t.relname = ?
+				AND pos < ix.indnkeyatts
 			ORDER BY i.relname, pos`
 		rows = db.Raw(query, pgSchema, tableName)
 	case "mysql":

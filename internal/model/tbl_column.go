@@ -169,6 +169,12 @@ func (c *Column) defaultTagValue() string {
 	if value == "" {
 		return "''"
 	}
+	// Handle JSON/JSONB default values that need quoting (e.g., {} or [])
+	// PostgreSQL requires these to be quoted strings like '{}'
+	if (strings.HasPrefix(value, "{") && strings.HasSuffix(value, "}")) ||
+		(strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]")) {
+		return "'" + value + "'"
+	}
 	return value
 }
 
